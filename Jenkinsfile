@@ -2,6 +2,7 @@ pipeline {
     agent any
     
     environment {
+        PATH = "/usr/local/bin:/usr/bin:/bin:${env.PATH}"
         DOCKER_HUB_USERNAME = 'harshwarbhe'
         EUREKA_IMAGE = "${DOCKER_HUB_USERNAME}/revticket-ms-eureka"
         GATEWAY_IMAGE = "${DOCKER_HUB_USERNAME}/revticket-ms-gateway"
