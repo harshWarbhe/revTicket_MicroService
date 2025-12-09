@@ -1,12 +1,13 @@
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app
-COPY ../pom.xml ../pom.xml
+COPY ../pom.xml /app/../pom.xml
 COPY pom.xml .
 COPY src ./src
-RUN apt-get update && apt-get install -y maven && mvn clean package -DskipTests
+COPY --from=maven:3.8-eclipse-temurin-17 /usr/share/maven /usr/share/maven
+RUN ln -s /usr/share/maven/bin/mvn /usr/bin/mvn && mvn clean package -DskipTests
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8081
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
