@@ -1,0 +1,18 @@
+{
+  "razorpayOrderId": "order_MockOrder123",
+  "razorpayPaymentId": "pay_MockPayment123",
+  "razorpaySignature": "test_bypass_signature_verification",
+  "showtimeId": "fab49a05-1dfc-4604-b94f-affd25b7d946",
+  "seats": [
+    "seat-1",
+    "seat-2"
+  ],
+  "seatLabels": [
+    "A1",
+    "A2"
+  ],
+  "totalAmount": 2.0,
+  "customerName": "harsh warbhe",
+  "customerEmail": "harshwarbhe@gmail.com",
+  "customerPhone": "7798385700"
+}

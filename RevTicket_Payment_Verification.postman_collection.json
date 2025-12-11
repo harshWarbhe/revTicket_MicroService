@@ -1,0 +1,183 @@
+{
+  "info": {
+    "name": "RevTicket Payment Verification",
+    "description": "Collection for testing payment verification endpoint",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login - Get Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set(\"token\", jsonData.token);",
+              "    pm.environment.set(\"userId\", jsonData.user.id);",
+              "    console.log(\"Token saved:\", jsonData.token);",
+              "    console.log(\"User ID saved:\", jsonData.user.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Login to get authentication token. Token will be automatically saved to environment variable."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Get Showtimes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/showtimes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "showtimes"]
+        },
+        "description": "Get list of showtimes to find a valid showtime ID"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Verify Payment - Using Authorization Header",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "Bearer token from login"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razorpayOrderId\": \"order_MockOrder123\",\n  \"razorpayPaymentId\": \"pay_MockPayment123\",\n  \"razorpaySignature\": \"mock_signature_for_testing\",\n  \"showtimeId\": \"your-showtime-id-here\",\n  \"seats\": [\"seat-1\", \"seat-2\"],\n  \"seatLabels\": [\"A1\", \"A2\"],\n  \"totalAmount\": 500.00,\n  \"customerName\": \"John Doe\",\n  \"customerEmail\": \"john.doe@example.com\",\n  \"customerPhone\": \"9876543210\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/razorpay/verify-payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "razorpay", "verify-payment"]
+        },
+        "description": "Verify payment using Authorization header. Replace showtimeId and seat IDs with actual values."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Verify Payment - Using X-User-Id Header",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{userId}}",
+            "description": "User ID from login response"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razorpayOrderId\": \"order_MockOrder123\",\n  \"razorpayPaymentId\": \"pay_MockPayment123\",\n  \"razorpaySignature\": \"mock_signature_for_testing\",\n  \"showtimeId\": \"your-showtime-id-here\",\n  \"seats\": [\"seat-1\", \"seat-2\"],\n  \"seatLabels\": [\"A1\", \"A2\"],\n  \"totalAmount\": 500.00,\n  \"customerName\": \"John Doe\",\n  \"customerEmail\": \"john.doe@example.com\",\n  \"customerPhone\": \"9876543210\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/razorpay/verify-payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "razorpay", "verify-payment"]
+        },
+        "description": "Verify payment using X-User-Id header (alternative to Authorization header)"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Create Razorpay Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 500.00,\n  \"showtimeId\": \"your-showtime-id-here\",\n  \"currency\": \"INR\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/razorpay/create-order",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "razorpay", "create-order"]
+        },
+        "description": "Create a Razorpay order. Use the orderId from response in verify-payment request."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

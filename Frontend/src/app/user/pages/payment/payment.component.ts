@@ -191,6 +191,14 @@ export class PaymentComponent implements OnInit {
       customerEmail: contact.email,
       customerPhone: contact.phone
     };
+    
+    console.log('🔍 Payment Verification Request:', {
+      showtimeId: verificationRequest.showtimeId,
+      seats: verificationRequest.seats,
+      totalAmount: verificationRequest.totalAmount,
+      customerName: verificationRequest.customerName,
+      razorpayOrderId: verificationRequest.razorpayOrderId
+    });
 
     this.razorpayService.verifyPayment(verificationRequest)
       .pipe(finalize(() => this.processing.set(false)))

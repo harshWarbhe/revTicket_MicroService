@@ -6,6 +6,7 @@ import com.revticket.payment.dto.RazorpayVerificationRequest;
 import com.revticket.payment.entity.Booking;
 import com.revticket.payment.service.RazorpayService;
 import com.revticket.payment.util.JwtUtil;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -46,39 +46,22 @@ public class RazorpayController {
 
     @PostMapping("/verify-payment")
     public ResponseEntity<?> verifyPayment(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @Valid @RequestBody RazorpayVerificationRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
         try {
-            logger.info("Verifying payment for order: {}", payload.get("razorpayOrderId"));
-            logger.debug("Payment verification payload: {}", payload);
-            
-            String userId = null;
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                userId = jwtUtil.extractUserId(token);
-                logger.info("Extracted userId from token: {}", userId);
-            }
+            logger.info("Verifying payment for order: {} | Showtime: {} | Seats: {}", 
+                request.getRazorpayOrderId(), request.getShowtimeId(), request.getSeats().size());
 
+            String userId = resolveUserId(authHeader, userIdHeader);
             if (userId == null || userId.isEmpty()) {
-                logger.error("Failed to extract userId from authorization header");
+                logger.error("Failed to resolve userId from headers");
                 Map<String, Object> error = new HashMap<>();
                 error.put("success", false);
-                error.put("message", "Unable to extract user ID from token");
+                error.put("message", "Unable to resolve user ID from request headers");
                 error.put("error", "AUTHENTICATION_FAILED");
                 return ResponseEntity.status(401).body(error);
             }
-
-            RazorpayVerificationRequest request = new RazorpayVerificationRequest();
-            request.setRazorpayOrderId((String) payload.get("razorpayOrderId"));
-            request.setRazorpayPaymentId((String) payload.get("razorpayPaymentId"));
-            request.setRazorpaySignature((String) payload.get("razorpaySignature"));
-            request.setShowtimeId((String) payload.get("showtimeId"));
-            request.setSeats((List<String>) payload.get("seats"));
-            request.setSeatLabels((List<String>) payload.get("seatLabels"));
-            request.setTotalAmount(((Number) payload.get("totalAmount")).doubleValue());
-            request.setCustomerName((String) payload.get("customerName"));
-            request.setCustomerEmail((String) payload.get("customerEmail"));
-            request.setCustomerPhone((String) payload.get("customerPhone"));
 
             Booking booking = razorpayService.verifyPaymentAndCreateBooking(userId, request);
 
@@ -91,7 +74,7 @@ public class RazorpayController {
             logger.info("Payment verified successfully. Booking ID: {}", booking.getId());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Payment verification failed: {}", e.getMessage(), e);
+            logger.error("Payment verification failed: {} | Cause: {}", e.getMessage(), e.getCause(), e);
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
             error.put("message", e.getMessage());
@@ -103,16 +86,12 @@ public class RazorpayController {
     @PostMapping("/payment-failed")
     public ResponseEntity<?> paymentFailed(
             @RequestBody RazorpayVerificationRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
         try {
             logger.info("Recording payment failure for order: {}", request.getRazorpayOrderId());
-            
-            String userId = null;
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                userId = jwtUtil.extractUserId(token);
-            }
 
+            String userId = resolveUserId(authHeader, userIdHeader);
             if (userId != null) {
                 razorpayService.handlePaymentFailure(userId, request);
             }
@@ -129,5 +108,21 @@ public class RazorpayController {
             error.put("error", "PAYMENT_FAILURE_HANDLER_ERROR");
             return ResponseEntity.badRequest().body(error);
         }
+    }
+
+    private String resolveUserId(String authHeader, String userIdHeader) {
+        if (userIdHeader != null && !userIdHeader.isBlank()) {
+            return userIdHeader;
+        }
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                return jwtUtil.extractUserId(token);
+            } catch (Exception e) {
+                logger.warn("Failed to extract userId from Authorization header: {}", e.getMessage());
+            }
+        }
+        return null;
     }
 }
