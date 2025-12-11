@@ -40,8 +40,8 @@ services:
   # Eureka Server (Service Discovery)
   eureka-server:
     build:
-      context: ./eureka-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./eureka-server/Dockerfile
     container_name: eureka-server
     ports:
       - "8761:8761"
@@ -56,8 +56,8 @@ services:
   # API Gateway
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
     container_name: api-gateway
     ports:
       - "8080:8080"
@@ -78,8 +78,8 @@ services:
   # User Service
   user-service:
     build:
-      context: ./user-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./user-service/Dockerfile
     container_name: user-service
     ports:
       - "8081:8081"
@@ -110,8 +110,8 @@ services:
   # Movie Service
   movie-service:
     build:
-      context: ./movie-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./movie-service/Dockerfile
     container_name: movie-service
     ports:
       - "8082:8082"
@@ -136,8 +136,8 @@ services:
   # Theater Service
   theater-service:
     build:
-      context: ./theater-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./theater-service/Dockerfile
     container_name: theater-service
     ports:
       - "8083:8083"
@@ -162,8 +162,8 @@ services:
   # Showtime Service
   showtime-service:
     build:
-      context: ./showtime-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./showtime-service/Dockerfile
     container_name: showtime-service
     ports:
       - "8084:8084"
@@ -194,8 +194,8 @@ services:
   # Booking Service
   booking-service:
     build:
-      context: ./booking-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./booking-service/Dockerfile
     container_name: booking-service
     ports:
       - "8085:8085"
@@ -228,8 +228,8 @@ services:
   # Payment Service
   payment-service:
     build:
-      context: ./payment-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./payment-service/Dockerfile
     container_name: payment-service
     ports:
       - "8086:8086"
@@ -256,8 +256,8 @@ services:
   # Review Service
   review-service:
     build:
-      context: ./review-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./review-service/Dockerfile
     container_name: review-service
     ports:
       - "8087:8087"
@@ -281,8 +281,8 @@ services:
   # Search Service
   search-service:
     build:
-      context: ./search-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./search-service/Dockerfile
     container_name: search-service
     ports:
       - "8088:8088"
@@ -308,8 +308,8 @@ services:
   # Notification Service
   notification-service:
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./notification-service/Dockerfile
     container_name: notification-service
     ports:
       - "8089:8089"
@@ -334,8 +334,8 @@ services:
   # Settings Service
   settings-service:
     build:
-      context: ./settings-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./settings-service/Dockerfile
     container_name: settings-service
     ports:
       - "8090:8090"
@@ -360,8 +360,8 @@ services:
   # Dashboard Service
   dashboard-service:
     build:
-      context: ./dashboard-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./dashboard-service/Dockerfile
     container_name: dashboard-service
     ports:
       - "8091:8091"
