@@ -1,5 +1,7 @@
 package com.revticket.booking.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,11 +22,14 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "user_id", nullable = false)
-    private String userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @Column(name = "showtime_id", nullable = false)
-    private String showtimeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "showtime_id", nullable = false)
+    @JsonBackReference("showtime-bookings")
+    private Showtime showtime;
 
     @ElementCollection
     @CollectionTable(name = "booking_seats", joinColumns = @JoinColumn(name = "booking_id"))
@@ -86,7 +91,12 @@ public class Booking {
     @Column(name = "cancellation_requested_at")
     private LocalDateTime cancellationRequestedAt;
 
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private Payment payment;
+
     public enum BookingStatus {
         PENDING, CONFIRMED, CANCELLED, CANCELLATION_PENDING
     }
 }
+

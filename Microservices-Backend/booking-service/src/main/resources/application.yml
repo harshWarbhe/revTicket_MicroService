@@ -1,20 +1,14 @@
 server:
-  port: 8085
+  port: 8082
 
 spring:
   application:
     name: booking-service
-  
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/booking_service_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:Admin123}
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/${MYSQL_DATABASE:revticket_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:Admin123}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      connection-timeout: 60000
-      maximum-pool-size: 10
-      minimum-idle: 5
-  
   jpa:
     hibernate:
       ddl-auto: update
@@ -23,12 +17,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:nanijohn460@gmail.com}
-    password: ${MAIL_PASSWORD:femrwvgygpiurafn}
+    host: smtp.gmail.com
+    port: 587
+    username: nanijohn460@gmail.com
+    password: femrwvgygpiurafn
     properties:
       mail:
         smtp:
@@ -40,39 +33,23 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+jwt:
+  secret: RevTicketSecretKeyForJWTTokenGeneration2024SecureAndLongEnough
+  expiration: 86400000
+
+app:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:4200}
+
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
+      defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
-    instance-id: ${spring.application.name}:${random.value}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
-  endpoint:
-    health:
-      show-details: when-authorized
-
-feign:
-  client:
-    config:
-      default:
-        connectTimeout: 5000
-        readTimeout: 5000
-        loggerLevel: basic
-  circuitbreaker:
-    enabled: true
-
-jwt:
-  secret: ${JWT_SECRET:RevTicketSecretKeyForJWTTokenGeneration2024SecureAndLongEnough}
-  expiration: 86400000
-
-logging:
-  level:
-    com.revticket.booking: DEBUG
+        include: health,info,metrics

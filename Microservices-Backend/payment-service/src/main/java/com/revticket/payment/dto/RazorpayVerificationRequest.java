@@ -3,6 +3,7 @@ package com.revticket.payment.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public class RazorpayVerificationRequest {
     private List<String> seatLabels;
 
     @NotNull(message = "Total amount is required")
+    @Positive(message = "Total amount must be greater than zero")
     private Double totalAmount;
 
     @NotBlank(message = "Customer name is required")

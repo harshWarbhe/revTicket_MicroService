@@ -1,5 +1,6 @@
 package com.revticket.payment.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,8 +19,10 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "booking_id", nullable = false, unique = true)
-    private String bookingId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id", nullable = false, unique = true)
+    @JsonBackReference
+    private Booking booking;
 
     @Column(nullable = false)
     private Double amount;
@@ -56,3 +59,4 @@ public class Payment {
         PENDING, SUCCESS, FAILED, REFUNDED
     }
 }
+

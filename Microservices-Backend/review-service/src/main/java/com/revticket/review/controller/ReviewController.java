@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * ReviewController - Matches the monolithic backend's pattern exactly.
+ * Uses Authentication parameter only, no @RequestHeader for token.
+ */
 @RestController
 @RequestMapping("/api/reviews")
 @CrossOrigin(origins = { "http://localhost:4200", "*" })
@@ -25,10 +29,9 @@ public class ReviewController {
 
     @PostMapping
     public ResponseEntity<ReviewResponse> addReview(@RequestBody ReviewRequest request,
-            Authentication authentication,
-            @RequestHeader("Authorization") String token) {
-        String userId = securityUtil.getCurrentUserId(authentication, token);
-        ReviewResponse response = reviewService.addReview(userId, request, token);
+            Authentication authentication) {
+        String userId = securityUtil.getCurrentUserId(authentication);
+        ReviewResponse response = reviewService.addReview(userId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -46,10 +49,16 @@ public class ReviewController {
 
     @GetMapping("/can-review/{movieId}")
     public ResponseEntity<Map<String, Boolean>> canReviewMovie(@PathVariable String movieId,
-            Authentication authentication,
-            @RequestHeader("Authorization") String token) {
-        String userId = securityUtil.getCurrentUserId(authentication, token);
-        boolean canReview = reviewService.canUserReviewMovie(userId, movieId, token);
-        return ResponseEntity.ok(Map.of("canReview", canReview));
+            Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.ok(Map.of("canReview", false));
+        }
+        try {
+            String userId = securityUtil.getCurrentUserId(authentication);
+            boolean canReview = reviewService.canUserReviewMovie(userId, movieId);
+            return ResponseEntity.ok(Map.of("canReview", canReview));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("canReview", false));
+        }
     }
 }

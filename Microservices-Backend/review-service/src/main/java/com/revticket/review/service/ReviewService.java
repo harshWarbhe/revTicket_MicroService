@@ -2,11 +2,12 @@ package com.revticket.review.service;
 
 import com.revticket.review.client.BookingServiceClient;
 import com.revticket.review.client.MovieServiceClient;
-import com.revticket.review.client.UserServiceClient;
 import com.revticket.review.dto.ReviewRequest;
 import com.revticket.review.dto.ReviewResponse;
 import com.revticket.review.entity.Review;
+import com.revticket.review.entity.User;
 import com.revticket.review.repository.ReviewRepository;
+import com.revticket.review.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * ReviewService - Matches the monolithic backend's pattern.
+ * Uses UserRepository directly to get user info instead of Feign client.
+ */
 @Service
 public class ReviewService {
 
@@ -22,7 +27,7 @@ public class ReviewService {
     private ReviewRepository reviewRepository;
 
     @Autowired
-    private UserServiceClient userServiceClient;
+    private UserRepository userRepository;
 
     @Autowired
     private MovieServiceClient movieServiceClient;
@@ -30,15 +35,18 @@ public class ReviewService {
     @Autowired
     private BookingServiceClient bookingServiceClient;
 
-    public ReviewResponse addReview(String userId, ReviewRequest request, String token) {
-        Map<String, Object> user = userServiceClient.getUserProfile(token);
+    public ReviewResponse addReview(String userId, ReviewRequest request) {
+        // Get user from database - matches monolithic pattern
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         Map<String, Object> movie = movieServiceClient.getMovieById(request.getMovieId());
 
         if (reviewRepository.findByUserIdAndMovieId(userId, request.getMovieId()).isPresent()) {
             throw new RuntimeException("You have already reviewed this movie");
         }
 
-        List<Map<String, Object>> bookings = bookingServiceClient.getUserBookings(userId, token);
+        List<Map<String, Object>> bookings = bookingServiceClient.getUserBookings(userId);
         boolean hasWatchedMovie = bookings.stream()
                 .anyMatch(booking -> {
                     String status = (String) booking.get("status");
@@ -60,7 +68,7 @@ public class ReviewService {
 
         Review review = new Review();
         review.setUserId(userId);
-        review.setUserName((String) user.get("name"));
+        review.setUserName(user.getName());
         review.setMovieId(request.getMovieId());
         review.setMovieTitle((String) movie.get("title"));
         review.setRating(request.getRating());
@@ -165,12 +173,12 @@ public class ReviewService {
                 .collect(Collectors.toList());
     }
 
-    public boolean canUserReviewMovie(String userId, String movieId, String token) {
+    public boolean canUserReviewMovie(String userId, String movieId) {
         if (reviewRepository.findByUserIdAndMovieId(userId, movieId).isPresent()) {
             return false;
         }
 
-        List<Map<String, Object>> bookings = bookingServiceClient.getUserBookings(userId, token);
+        List<Map<String, Object>> bookings = bookingServiceClient.getUserBookings(userId);
         return bookings.stream()
                 .anyMatch(booking -> {
                     String status = (String) booking.get("status");

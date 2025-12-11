@@ -25,7 +25,7 @@ public class SeatController {
     public ResponseEntity<Map<String, String>> initializeSeats(@RequestBody Map<String, Object> request) {
         String showtimeId = (String) request.get("showtimeId");
         String screenId = (String) request.get("screenId");
-        
+
         seatService.initializeSeatsForShowtime(showtimeId, screenId);
         return ResponseEntity.ok(Map.of("message", "Seats initialized successfully"));
     }
@@ -36,7 +36,7 @@ public class SeatController {
         @SuppressWarnings("unchecked")
         List<String> seatIds = (List<String>) request.get("seatIds");
         String sessionId = (String) request.get("sessionId");
-        
+
         seatService.holdSeats(showtimeId, seatIds, sessionId);
         return ResponseEntity.ok(Map.of("message", "Seats held successfully"));
     }
@@ -46,7 +46,7 @@ public class SeatController {
         String showtimeId = (String) request.get("showtimeId");
         @SuppressWarnings("unchecked")
         List<String> seatIds = (List<String>) request.get("seatIds");
-        
+
         seatService.releaseSeats(showtimeId, seatIds);
         return ResponseEntity.ok(Map.of("message", "Seats released successfully"));
     }

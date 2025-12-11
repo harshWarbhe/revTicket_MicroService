@@ -10,8 +10,8 @@ import java.util.Map;
 @FeignClient(name = "theater-service", fallback = TheaterServiceClientFallback.class)
 public interface TheaterServiceClient {
     @GetMapping("/api/screens/{id}/config")
-    Map<String, Object> getScreenConfig(@PathVariable String id);
-    
+    Map<String, Object> getScreenConfig(@PathVariable("id") String id);
+
     @GetMapping("/api/theaters/{id}")
     TheaterDTO getTheaterById(@PathVariable("id") String id);
 }

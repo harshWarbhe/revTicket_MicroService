@@ -1,9 +1,12 @@
 package com.revticket.dashboard.security;
 
+import com.revticket.dashboard.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,10 +16,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     protected void doFilterInternal(
@@ -24,21 +30,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain chain) throws ServletException, IOException {
 
-        // Read user info from headers set by API Gateway
-        String userId = request.getHeader("X-User-Id");
-        String userRole = request.getHeader("X-User-Role");
+        final String authorizationHeader = request.getHeader("Authorization");
 
-        if (userId != null && userRole != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        String username = null;
+        String jwt = null;
+
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            jwt = authorizationHeader.substring(7);
             try {
-                // Create authentication token with role from header
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + userRole);
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userId, null,
-                        List.of(authority));
-
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                username = jwtUtil.extractUsername(jwt);
             } catch (Exception e) {
-                logger.error("Authentication setup error", e);
+                logger.error("JWT Token parsing error", e);
+            }
+        }
+
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                if (jwtUtil.validateToken(jwt, username)) {
+                    Claims claims = jwtUtil.extractClaim(jwt, c -> c);
+                    String role = claims.get("role", String.class);
+
+                    if (role != null && !role.startsWith("ROLE_")) {
+                        role = "ROLE_" + role;
+                    }
+
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role != null ? role : "ROLE_USER");
+
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            username, null, Collections.singletonList(authority));
+
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            } catch (Exception e) {
+                logger.error("Token validation error", e);
             }
         }
 

@@ -8,42 +8,53 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.function.Function;
 
-/**
- * JWT Utility for Booking Service
- * Extracts user information from JWT tokens (similar to monolithic
- * SecurityUtil)
- */
 @Component
 public class JwtUtil {
 
     @Value("${jwt.secret}")
-    private String jwtSecret;
+    private String secret;
 
-    /**
-     * Extract userId from JWT token
-     * Equivalent to SecurityUtil.getCurrentUserId() in monolithic
-     */
-    public String extractUserId(String token) {
-        return extractClaims(token).getSubject();
+    @Value("${jwt.expiration}")
+    private Long expiration;
+
+    private SecretKey getSigningKey() {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 32 characters");
+        }
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Extract user role from JWT token
-     */
-    public String extractRole(String token) {
-        return extractClaims(token).get("role", String.class);
-    }
-
-    /**
-     * Extract all claims from JWT token
-     */
-    private Claims extractClaims(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    public Claims extractAllClaims(String token) {
+        if (token.startsWith("Bearer "))
+            token = token.substring(7);
         return Jwts.parser()
-                .verifyWith(key)
+                .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public String extractUserId(String token) {
+        Claims claims = extractAllClaims(token);
+        Object userIdObj = claims.get("userId");
+        if (userIdObj != null) {
+            return userIdObj.toString();
+        }
+        return claims.getSubject();
+    }
+
+    public <T> T extractClaim(String token, Function<Claims, T> resolver) {
+        return resolver.apply(extractAllClaims(token));
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extractClaim(token, Claims::getExpiration).before(new Date());
+    }
+
+    public boolean validateToken(String token, String username) {
+        return username.equals(extractClaim(token, Claims::getSubject)) && !isTokenExpired(token);
     }
 }

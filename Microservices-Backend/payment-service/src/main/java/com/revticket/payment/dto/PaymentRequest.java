@@ -15,5 +15,6 @@ public class PaymentRequest {
     private Double amount;
 
     @NotBlank(message = "Payment method is required")
-    private String paymentMethod;
+    private String paymentMethod; // CARD, UPI, WALLET
 }
+

@@ -18,7 +18,6 @@ function log(msg) {
     console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 }
 
-// Kill all existing Java processes on specified ports
 function killExistingProcesses() {
     log('Cleaning up existing processes...');
     const ports = [8761, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8089, 8090, 8091];
@@ -55,7 +54,7 @@ async function waitForService(port, name, maxWait = 60, healthPath = '/actuator/
 
     while ((Date.now() - start) / 1000 < maxWait) {
         if (await checkHealth(port, healthPath)) {
-            process.stdout.write('\r' + ' '.repeat(80) + '\r'); // Clear line
+            process.stdout.write('\r' + ' '.repeat(80) + '\r');
             log(`✓ ${name} is UP (http://localhost:${port})`);
             return true;
         }
@@ -64,7 +63,7 @@ async function waitForService(port, name, maxWait = 60, healthPath = '/actuator/
         await new Promise(r => setTimeout(r, 1000));
     }
 
-    process.stdout.write('\r' + ' '.repeat(80) + '\r'); // Clear line
+    process.stdout.write('\r' + ' '.repeat(80) + '\r');
     log(`⚠ ${name} timeout - check logs/${name.split('-')[0]}.log`);
     return false;
 }
@@ -127,18 +126,12 @@ function runJar(serviceName, jarPath, port) {
 }
 
 function startFrontend() {
-    log('Starting Frontend...');
+    log('Starting Frontend with proxy...');
     const npm = isWindows ? 'npm.cmd' : 'npm';
 
-    const proc = spawn(npm, ['start'], {
+    const proc = spawn(npm, ['run', 'dev'], {
         cwd: path.join(__dirname, 'Frontend'),
-        stdio: 'pipe'
-    });
-
-    proc.stdout.on('data', (data) => {
-        if (data.toString().includes('Local:')) {
-            log('✓ Frontend ready at http://localhost:4200');
-        }
+        stdio: 'inherit'
     });
 
     processes.push({ proc, name: 'frontend' });
@@ -153,7 +146,6 @@ function cleanup() {
         } catch (e) { }
     });
 
-    // Final cleanup
     setTimeout(() => {
         try {
             if (!isWindows) {
@@ -197,9 +189,8 @@ async function checkServiceHealth() {
 async function main() {
     console.log('🚀 RevTicket Microservices Launcher\n');
 
-    // First, kill any existing processes
     killExistingProcesses();
-    await new Promise(r => setTimeout(r, 2000)); // Wait for processes to fully die
+    await new Promise(r => setTimeout(r, 2000));
 
     const services = [
         { name: 'eureka-server', port: 8761, wait: 15 },
@@ -220,20 +211,23 @@ async function main() {
     for (const service of services) {
         await startService(service.name, service.port);
         await waitForService(service.port, service.name, service.wait);
-        await new Promise(r => setTimeout(r, 500)); // Brief pause between services
+        await new Promise(r => setTimeout(r, 500));
     }
 
-    startFrontend();
-    await new Promise(r => setTimeout(r, 5000));
-
-    // Show final health status
     await checkServiceHealth();
+
+    log('Waiting for all services to stabilize...');
+    await new Promise(r => setTimeout(r, 3000));
+
+    startFrontend();
+    await new Promise(r => setTimeout(r, 8000));
 
     console.log('\n📱 Quick Access:');
     console.log('  Frontend:       http://localhost:4200');
     console.log('  API Gateway:    http://localhost:8080');
     console.log('  Eureka Console: http://localhost:8761');
     console.log('\n📂 Logs: ' + logsDir);
+    console.log('\n✅ API URL: http://localhost:8080/api');
     console.log('\n⌨️  Press Ctrl+C to stop all services\n');
 }
 

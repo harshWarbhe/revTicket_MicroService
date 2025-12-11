@@ -2,7 +2,9 @@ package com.revticket.booking.service;
 
 import com.revticket.booking.client.TheaterServiceClient;
 import com.revticket.booking.entity.Seat;
+import com.revticket.booking.entity.Showtime;
 import com.revticket.booking.repository.SeatRepository;
+import com.revticket.booking.repository.ShowtimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,9 @@ public class SeatService {
     @Autowired
     private SeatRepository seatRepository;
 
+    @Autowired
+    private ShowtimeRepository showtimeRepository;
+
     @Transactional
     public List<Seat> getSeatsByShowtime(String showtimeId) {
         List<Seat> seats = seatRepository.findByShowtimeId(showtimeId);
@@ -30,8 +35,8 @@ public class SeatService {
         List<Seat> expiredHolds = new ArrayList<>();
         for (Seat seat : seats) {
             if (Boolean.TRUE.equals(seat.getIsHeld()) &&
-                seat.getHoldExpiry() != null &&
-                seat.getHoldExpiry().isBefore(now)) {
+                    seat.getHoldExpiry() != null &&
+                    seat.getHoldExpiry().isBefore(now)) {
                 seat.setIsHeld(false);
                 seat.setHoldExpiry(null);
                 seat.setSessionId(null);
@@ -86,6 +91,9 @@ public class SeatService {
         }
 
         try {
+            Showtime showtime = showtimeRepository.findById(showtimeId)
+                    .orElseThrow(() -> new RuntimeException("Showtime not found: " + showtimeId));
+
             Map<String, Object> screenConfig = theaterServiceClient.getScreenConfig(screenId);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> seatMap = (List<Map<String, Object>>) screenConfig.get("seatMap");
@@ -111,7 +119,7 @@ public class SeatService {
                 Double price = category != null ? ((Number) category.get("price")).doubleValue() : 100.0;
 
                 Seat seat = new Seat();
-                seat.setShowtimeId(showtimeId);
+                seat.setShowtime(showtime);
                 seat.setRow(String.valueOf((char) ('A' + rowNum)));
                 seat.setNumber(col + 1);
                 seat.setPrice(price);

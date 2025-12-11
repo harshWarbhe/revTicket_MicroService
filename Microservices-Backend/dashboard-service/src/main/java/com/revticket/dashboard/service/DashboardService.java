@@ -34,7 +34,7 @@ public class DashboardService {
 
     public SystemOverviewDTO getSystemOverview() {
         SystemOverviewDTO overview = new SystemOverviewDTO();
-        
+
         try {
             Map<String, Object> userStats = userServiceClient.getUserStats();
             overview.setTotalUsers(getLong(userStats, "totalUsers"));
@@ -95,12 +95,11 @@ public class DashboardService {
         try {
             Map<String, Object> stats = paymentServiceClient.getPaymentStats();
             return new RevenueStatsDTO(
-                getDouble(stats, "totalRevenue"),
-                getDouble(stats, "convenienceFees"),
-                getDouble(stats, "gstAmount"),
-                getDouble(stats, "netRevenue"),
-                getLong(stats, "totalTransactions")
-            );
+                    getDouble(stats, "totalRevenue"),
+                    getDouble(stats, "convenienceFees"),
+                    getDouble(stats, "gstAmount"),
+                    getDouble(stats, "netRevenue"),
+                    getLong(stats, "totalTransactions"));
         } catch (Exception e) {
             return new RevenueStatsDTO(0.0, 0.0, 0.0, 0.0, 0L);
         }
@@ -110,13 +109,12 @@ public class DashboardService {
         try {
             Map<String, Object> stats = bookingServiceClient.getBookingStats();
             return new BookingStatsDTO(
-                getLong(stats, "totalBookings"),
-                getLong(stats, "confirmedBookings"),
-                getLong(stats, "cancelledBookings"),
-                getLong(stats, "pendingBookings"),
-                getDouble(stats, "averageBookingValue"),
-                getLong(stats, "totalSeatsBooked")
-            );
+                    getLong(stats, "totalBookings"),
+                    getLong(stats, "confirmedBookings"),
+                    getLong(stats, "cancelledBookings"),
+                    getLong(stats, "pendingBookings"),
+                    getDouble(stats, "averageBookingValue"),
+                    getLong(stats, "totalSeatsBooked"));
         } catch (Exception e) {
             return new BookingStatsDTO(0L, 0L, 0L, 0L, 0.0, 0L);
         }
@@ -134,11 +132,10 @@ public class DashboardService {
         try {
             Map<String, Object> stats = theaterServiceClient.getTheaterStats();
             return new TheaterStatsDTO(
-                getLong(stats, "totalTheaters"),
-                getLong(stats, "activeTheaters"),
-                getLong(stats, "totalScreens"),
-                getLong(stats, "totalSeats")
-            );
+                    getLong(stats, "totalTheaters"),
+                    getLong(stats, "activeTheaters"),
+                    getLong(stats, "totalScreens"),
+                    getLong(stats, "totalSeats"));
         } catch (Exception e) {
             return new TheaterStatsDTO(0L, 0L, 0L, 0L);
         }
@@ -148,11 +145,10 @@ public class DashboardService {
         try {
             Map<String, Object> stats = showtimeServiceClient.getShowtimeStats();
             return new ShowtimeStatsDTO(
-                getLong(stats, "totalShowtimes"),
-                getLong(stats, "upcomingShowtimes"),
-                getLong(stats, "completedShowtimes"),
-                getDouble(stats, "averageOccupancy")
-            );
+                    getLong(stats, "totalShowtimes"),
+                    getLong(stats, "upcomingShowtimes"),
+                    getLong(stats, "completedShowtimes"),
+                    getDouble(stats, "averageOccupancy"));
         } catch (Exception e) {
             return new ShowtimeStatsDTO(0L, 0L, 0L, 0.0);
         }
@@ -166,14 +162,21 @@ public class DashboardService {
         }
     }
 
+    public java.util.List<Object> getAllBookings() {
+        try {
+            return bookingServiceClient.getAllBookings();
+        } catch (Exception e) {
+            return java.util.Collections.emptyList();
+        }
+    }
+
     public AnalyticsResponse getFullReport() {
         return new AnalyticsResponse(
-            getSystemOverview(),
-            getRevenueStats(),
-            getBookingStats(),
-            getTheaterStats(),
-            getShowtimeStats()
-        );
+                getSystemOverview(),
+                getRevenueStats(),
+                getBookingStats(),
+                getTheaterStats(),
+                getShowtimeStats());
     }
 
     private Long getLong(Map<String, Object> map, String key) {

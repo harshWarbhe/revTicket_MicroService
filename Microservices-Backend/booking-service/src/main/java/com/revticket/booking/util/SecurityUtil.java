@@ -1,60 +1,67 @@
 package com.revticket.booking.util;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.revticket.booking.entity.User;
+import com.revticket.booking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * Security Utility for Booking Service
- * Mimics monolithic SecurityUtil but extracts from JWT in Authorization header
- */
+import jakarta.servlet.http.HttpServletRequest;
+
 @Component
 public class SecurityUtil {
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
-    /**
-     * Get current user ID from JWT token
-     * Equivalent to monolithic SecurityUtil.getCurrentUserId(authentication)
-     */
-    public String getCurrentUserId() {
-        HttpServletRequest request = getCurrentRequest();
-        if (request == null) {
-            return null;
+    public String getCurrentUserId(Authentication authentication) {
+        // Try to extract from request headers first
+        try {
+            RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof ServletRequestAttributes) {
+                HttpServletRequest req = ((ServletRequestAttributes) attrs).getRequest();
+                
+                String headerUserId = req.getHeader("X-User-Id");
+                if (headerUserId != null && !headerUserId.isEmpty()) {
+                    return headerUserId;
+                }
+
+                String authHeader = req.getHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    String token = authHeader.substring(7);
+                    String userId = jwtUtil.extractUserId(token);
+                    if (userId != null && !userId.isEmpty()) {
+                        return userId;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error extracting userId from request: " + e.getMessage());
         }
 
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            return jwtUtil.extractUserId(token);
+        // Fallback: extract from authentication principal
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                return user.getId();
+            }
         }
 
-        return null;
+        throw new RuntimeException("Unable to extract user ID");
     }
 
-    /**
-     * Get current user role from JWT token
-     */
-    public String getCurrentUserRole() {
-        HttpServletRequest request = getCurrentRequest();
-        if (request == null) {
-            return null;
-        }
-
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            return jwtUtil.extractRole(token);
-        }
-
-        return null;
-    }
-
-    private HttpServletRequest getCurrentRequest() {
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        return attributes != null ? attributes.getRequest() : null;
+    public User getCurrentUser(Authentication authentication) {
+        String userId = getCurrentUserId(authentication);
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

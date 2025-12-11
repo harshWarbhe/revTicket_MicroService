@@ -20,37 +20,40 @@ spring:
               maxBackoff: 500ms
       globalcors:
         corsConfigurations:
-          '[/**]':
-            allowedOrigins: "http://localhost:4200"
+          "[/**]":
+            allowedOrigins:
+              - "http://localhost:4200"
             allowedMethods:
               - GET
               - POST
               - PUT
               - DELETE
               - OPTIONS
-            allowedHeaders: "*"
+            allowedHeaders:
+              - "*"
             allowCredentials: true
+            maxAge: 3600
       routes:
         # User Service Routes
         - id: user-service-auth
           uri: lb://user-service
           predicates:
             - Path=/api/auth/**
-        
+
         - id: user-service-admin
           uri: lb://user-service
           predicates:
             - Path=/api/admin/users/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: user-service
           uri: lb://user-service
           predicates:
             - Path=/api/users/**
           filters:
             - JwtAuthenticationFilter
-        
+
         # Movie Service Routes
         - id: movie-service-admin
           uri: lb://movie-service
@@ -58,12 +61,12 @@ spring:
             - Path=/api/admin/movies/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: movie-service
           uri: lb://movie-service
           predicates:
             - Path=/api/movies/**,/api/languages/**
-        
+
         # Theater Service Routes
         - id: theater-service-admin
           uri: lb://theater-service
@@ -71,12 +74,12 @@ spring:
             - Path=/api/admin/theaters/**,/api/admin/theatres/**,/api/admin/screens/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: theater-service
           uri: lb://theater-service
           predicates:
             - Path=/api/theaters/**,/api/theatres/**,/api/screens/**
-        
+
         # Showtime Service Routes
         - id: showtime-service-admin
           uri: lb://showtime-service
@@ -84,65 +87,73 @@ spring:
             - Path=/api/admin/showtimes/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: showtime-service
           uri: lb://showtime-service
           predicates:
             - Path=/api/showtimes/**
-        
-        # Booking Service Routes
+
+        # Booking Service Routes - Public endpoints MUST come first
         - id: booking-service-seats-public
           uri: lb://booking-service
           predicates:
             - Path=/api/seats/showtime/**
-            - Method=GET
-        
+          filters: []
+
+        - id: booking-service-public
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/bookings/public/**
+          filters: []
+
         - id: booking-service
           uri: lb://booking-service
           predicates:
-            - Path=/api/bookings/**,/api/seats/**
+            - Path=/api/bookings/**,/api/seats/hold/**,/api/seats/release/**,/api/seats/initialize
           filters:
             - JwtAuthenticationFilter
-        
+
         # Payment Service Routes
         - id: payment-service-razorpay-health
           uri: lb://payment-service
           predicates:
             - Path=/api/razorpay/health
-        
+
         - id: payment-service-razorpay-create
           uri: lb://payment-service
           predicates:
             - Path=/api/razorpay/create-order
-        
+          filters:
+            - JwtAuthenticationFilter
+
         - id: payment-service-razorpay-verify
           uri: lb://payment-service
           predicates:
             - Path=/api/razorpay/verify-payment
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: payment-service-razorpay-payment-failed
           uri: lb://payment-service
           predicates:
             - Path=/api/razorpay/payment-failed
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: payment-service-razorpay
           uri: lb://payment-service
           predicates:
             - Path=/api/razorpay/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: payment-service
           uri: lb://payment-service
           predicates:
             - Path=/api/payments/**
           filters:
             - JwtAuthenticationFilter
-        
+
         # Review Service Routes
         - id: review-service-admin
           uri: lb://review-service
@@ -150,25 +161,25 @@ spring:
             - Path=/api/admin/reviews/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: review-service-public
           uri: lb://review-service
           predicates:
-            - Path=/api/reviews/movie/**
-        
+            - Path=/api/reviews/movie/**,/api/reviews/can-review/**
+
         - id: review-service
           uri: lb://review-service
           predicates:
             - Path=/api/reviews/**
           filters:
             - JwtAuthenticationFilter
-        
+
         # Search Service Routes
         - id: search-service
           uri: lb://search-service
           predicates:
             - Path=/api/search/**
-        
+
         # Notification Service Routes
         - id: notification-service
           uri: lb://notification-service
@@ -176,7 +187,7 @@ spring:
             - Path=/api/notifications/**,/ws/**
           filters:
             - JwtAuthenticationFilter
-        
+
         # Settings Service Routes
         - id: settings-service-admin
           uri: lb://settings-service
@@ -184,12 +195,12 @@ spring:
             - Path=/api/admin/settings/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: settings-service
           uri: lb://settings-service
           predicates:
             - Path=/api/settings/**
-        
+
         # Dashboard Service Routes
         - id: dashboard-service-reports
           uri: lb://dashboard-service
@@ -197,7 +208,7 @@ spring:
             - Path=/api/admin/reports/**
           filters:
             - JwtAuthenticationFilter
-        
+
         - id: dashboard-service
           uri: lb://dashboard-service
           predicates:
@@ -228,6 +239,3 @@ management:
   endpoint:
     health:
       show-details: always
-jwt:
-  secret: ${JWT_SECRET:RevTicketSecretKeyForJWTTokenGeneration2024SecureAndLongEnough}
-  expiration: 86400000

@@ -20,9 +20,6 @@ public class BookingRequest {
     @NotBlank(message = "Showtime ID is required")
     private String showtimeId;
 
-    // User ID - passed from payment service
-    private String userId;
-
     @NotEmpty(message = "At least one seat must be selected")
     private List<String> seats;
 
@@ -44,3 +41,4 @@ public class BookingRequest {
     @NotBlank(message = "Customer phone is required")
     private String customerPhone;
 }
+

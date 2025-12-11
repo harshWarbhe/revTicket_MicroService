@@ -1,5 +1,6 @@
 package com.revticket.booking.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -15,8 +16,10 @@ public class Seat {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "showtime_id", nullable = false)
-    private String showtimeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "showtime_id", nullable = false)
+    @JsonBackReference("showtime-seats")
+    private Showtime showtime;
 
     @Column(name = "`row`", nullable = false)
     private String row;
@@ -50,3 +53,4 @@ public class Seat {
         REGULAR, PREMIUM, VIP
     }
 }
+

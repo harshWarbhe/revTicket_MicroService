@@ -58,7 +58,7 @@ public class AuthService {
             String role = normalizeRole(user.getRole());
 
             // Generate JWT token with normalized role
-            String token = jwtUtil.generateToken(user.getEmail(), role);
+            String token = jwtUtil.generateToken(user.getEmail(), role, user.getId());
             UserDto userDto = convertToDto(user);
 
             return new AuthResponse(token, userDto);
@@ -111,7 +111,7 @@ public class AuthService {
 
         user = userRepository.save(user);
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getId());
         UserDto userDto = convertToDto(user);
 
         return new AuthResponse(token, userDto);
@@ -184,7 +184,7 @@ public class AuthService {
             userRepository.save(user);
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getId());
         UserDto userDto = convertToDto(user);
         return new AuthResponse(token, userDto);
     }

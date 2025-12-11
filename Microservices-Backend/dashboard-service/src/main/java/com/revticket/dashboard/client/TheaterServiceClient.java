@@ -5,9 +5,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Map;
 
-@FeignClient(name = "theater-service")
+@FeignClient(name = "theater-service", configuration = com.revticket.dashboard.config.FeignConfig.class)
 public interface TheaterServiceClient {
-    
+
     @GetMapping("/api/admin/theaters/stats")
     Map<String, Object> getTheaterStats();
 }

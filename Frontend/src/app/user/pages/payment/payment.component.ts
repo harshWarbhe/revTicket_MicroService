@@ -161,6 +161,24 @@ export class PaymentComponent implements OnInit {
   private handlePaymentSuccess(response: any, draft: BookingDraft, breakdown: BookingCostBreakdown, contact: any): void {
     this.processing.set(true);
 
+    if (!response.razorpay_order_id || !response.razorpay_payment_id || !response.razorpay_signature) {
+      this.processing.set(false);
+      this.alertService.error('Payment response incomplete. Please try again.');
+      return;
+    }
+
+    if (!draft.showtimeId || !draft.seats || draft.seats.length === 0) {
+      this.processing.set(false);
+      this.alertService.error('Booking information incomplete. Please start over.');
+      return;
+    }
+
+    if (!contact.name || !contact.email || !contact.phone) {
+      this.processing.set(false);
+      this.alertService.error('Contact information incomplete.');
+      return;
+    }
+
     const verificationRequest = {
       razorpayOrderId: response.razorpay_order_id,
       razorpayPaymentId: response.razorpay_payment_id,
@@ -179,6 +197,7 @@ export class PaymentComponent implements OnInit {
       .subscribe({
         next: (result) => {
           this.bookingService.clearCurrentBooking();
+          console.log('Payment verified successfully:', result);
           this.alertService.success('Payment successful! Redirecting...');
           this.router.navigate(['/user/payment-success'], {
             state: {
@@ -191,7 +210,43 @@ export class PaymentComponent implements OnInit {
         },
         error: (err) => {
           console.error('Payment verification failed:', err);
-          const errorMsg = err.error?.error || err.message || 'Payment verification failed. Please contact support.';
+          console.error('Error details:', {
+            status: err.status,
+            statusText: err.statusText,
+            error: err.error,
+            message: err.message,
+            url: err.url
+          });
+          
+          let errorMsg = 'Payment verification failed. Please try again.';
+          
+          // Handle validation errors with field-level details
+          if (err.status === 400) {
+            if (err.error?.errors && typeof err.error.errors === 'object') {
+              // Build detailed error message from field-level errors
+              const fieldErrors = Object.entries(err.error.errors)
+                .map(([field, message]) => `${field}: ${message}`)
+                .join(' | ');
+              errorMsg = `Validation failed: ${fieldErrors}`;
+            } else if (err.error?.message) {
+              errorMsg = err.error.message;
+            } else if (err.error?.error) {
+              errorMsg = err.error.error;
+            } else {
+              errorMsg = 'Invalid payment verification request.';
+            }
+          } else if (err.status === 401) {
+            errorMsg = 'Authentication failed. Please login again.';
+          } else if (err.status === 403) {
+            errorMsg = 'Access denied. Please check your permissions.';
+          } else if (err.error?.message) {
+            errorMsg = err.error.message;
+          } else if (err.error?.error) {
+            errorMsg = err.error.error;
+          } else if (err.message) {
+            errorMsg = err.message;
+          }
+          
           this.alertService.error(errorMsg);
           this.router.navigate(['/user/payment-failure'], {
             state: { draft: draft }

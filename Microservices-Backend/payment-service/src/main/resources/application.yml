@@ -1,20 +1,14 @@
 server:
-  port: 8084
+  port: 8086
 
 spring:
   application:
     name: payment-service
-
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/payment_service_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:Admin123}
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/${MYSQL_DATABASE:revticket_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:Admin123}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      connection-timeout: 60000
-      maximum-pool-size: 10
-      minimum-idle: 5
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -23,35 +17,45 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: nanijohn460@gmail.com
+    password: femrwvgygpiurafn
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+jwt:
+  secret: RevTicketSecretKeyForJWTTokenGeneration2024SecureAndLongEnough
+  expiration: 86400000
+
+app:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:4200}
+
 
 razorpay:
   key:
-    id: ${RAZORPAY_KEY_ID:rzp_test_Ro278zkDXduScL}
-    secret: ${RAZORPAY_KEY_SECRET:PBoZU26dOzGM9ABFwq4Ljc2p}
+    id: rzp_test_Ro278zkDXduScL
+    secret: PBoZU26dOzGM9ABFwq4Ljc2p
 
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
+      defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
-    instance-id: ${spring.application.name}:${random.value}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
-  endpoint:
-    health:
-      show-details: when-authorized
-
-logging:
-  level:
-    com.revticket.payment: DEBUG
-
-jwt:
-  secret: ${JWT_SECRET:RevTicketSecretKeyForJWTTokenGeneration2024SecureAndLongEnough}
-  expiration: 86400000
+        include: health,info,metrics

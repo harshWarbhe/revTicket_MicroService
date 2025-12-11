@@ -4,7 +4,7 @@ server:
 spring:
   application:
     name: movie-service
-  
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/movie_service_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${SPRING_DATASOURCE_USERNAME:root}
@@ -14,7 +14,7 @@ spring:
       connection-timeout: 60000
       maximum-pool-size: 10
       minimum-idle: 5
-  
+
   jpa:
     hibernate:
       ddl-auto: update

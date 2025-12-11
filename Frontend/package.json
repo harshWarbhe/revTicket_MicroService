@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
+    "dev": "ng serve --proxy-config proxy.conf.json --open",
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false --browsers=ChromeHeadless",
-    "test:watch": "ng test"
+    "serve:prod": "ng serve --configuration production --proxy-config proxy.conf.json",
+    "test:watch": "ng test",
+    "serve:debug": "ng serve --proxy-config proxy.conf.json --poll 2000"
   },
   "private": true,
   "dependencies": {

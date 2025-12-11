@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "movie-service")
+@FeignClient(name = "movie-service", configuration = com.revticket.search.config.FeignConfig.class)
 public interface MovieServiceClient {
-    
+
     @GetMapping("/api/movies/search")
     List<MovieSearchDTO> searchMovies(@RequestParam String query);
 }

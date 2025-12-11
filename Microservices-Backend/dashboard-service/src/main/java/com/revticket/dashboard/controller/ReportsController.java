@@ -1,10 +1,10 @@
 package com.revticket.dashboard.controller;
 
+import com.revticket.dashboard.service.DashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -15,7 +15,7 @@ import java.util.*;
 public class ReportsController {
 
     @Autowired
-    private RestTemplate restTemplate;
+    private DashboardService dashboardService;
 
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Object>> getReportSummary(
@@ -25,11 +25,10 @@ public class ReportsController {
         Map<String, Object> summary = new HashMap<>();
 
         try {
-            // Get booking stats
-            String bookingServiceUrl = "http://booking-service/api/bookings/all";
-            Object[] bookings = restTemplate.getForObject(bookingServiceUrl, Object[].class);
+            // Get all bookings using DashboardService (which uses Feign Client with Auth)
+            List<Object> bookings = dashboardService.getAllBookings();
 
-            int totalBookings = bookings != null ? bookings.length : 0;
+            int totalBookings = bookings != null ? bookings.size() : 0;
 
             // Calculate revenue (simplified - in production, sum actual booking amounts)
             double totalRevenue = totalBookings * 250.0; // Average ticket price
@@ -62,11 +61,8 @@ public class ReportsController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // Get all bookings from booking service
-            String bookingServiceUrl = "http://booking-service/api/bookings/all";
-            Object[] bookings = restTemplate.getForObject(bookingServiceUrl, Object[].class);
-
-            List<Object> bookingList = bookings != null ? Arrays.asList(bookings) : new ArrayList<>();
+            // Get all bookings using DashboardService
+            List<Object> bookingList = dashboardService.getAllBookings();
 
             // Simple pagination
             int start = page * size;
@@ -102,15 +98,14 @@ public class ReportsController {
         List<Map<String, Object>> trendData = new ArrayList<>();
 
         try {
-            // Get bookings
-            String bookingServiceUrl = "http://booking-service/api/bookings/all";
-            Object[] bookings = restTemplate.getForObject(bookingServiceUrl, Object[].class);
+            // Get bookings using DashboardService
+            List<Object> bookings = dashboardService.getAllBookings();
 
             // Generate trend data (simplified - in production, group by actual dates)
             LocalDate start = fromDate != null ? LocalDate.parse(fromDate) : LocalDate.now().minusDays(7);
             LocalDate end = toDate != null ? LocalDate.parse(toDate) : LocalDate.now();
 
-            int totalBookings = bookings != null ? bookings.length : 0;
+            int totalBookings = bookings != null ? bookings.size() : 0;
             long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(start, end);
 
             for (int i = 0; i <= daysBetween; i++) {

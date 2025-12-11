@@ -4,13 +4,17 @@ import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.razorpay.Utils;
-import com.revticket.payment.client.BookingServiceClient;
-import com.revticket.payment.client.ShowtimeServiceClient;
 import com.revticket.payment.dto.RazorpayOrderRequest;
 import com.revticket.payment.dto.RazorpayOrderResponse;
 import com.revticket.payment.dto.RazorpayVerificationRequest;
+import com.revticket.payment.entity.Booking;
 import com.revticket.payment.entity.Payment;
+import com.revticket.payment.entity.Showtime;
+import com.revticket.payment.entity.User;
+import com.revticket.payment.repository.BookingRepository;
 import com.revticket.payment.repository.PaymentRepository;
+import com.revticket.payment.repository.ShowtimeRepository;
+import com.revticket.payment.repository.UserRepository;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,15 +22,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 @Service
 public class RazorpayService {
-
     private static final Logger logger = LoggerFactory.getLogger(RazorpayService.class);
 
     @Value("${razorpay.key.id}")
@@ -36,113 +37,128 @@ public class RazorpayService {
     private String razorpayKeySecret;
 
     @Autowired
+    private BookingRepository bookingRepository;
+
+    @Autowired
     private PaymentRepository paymentRepository;
 
     @Autowired
-    private BookingServiceClient bookingServiceClient;
+    private ShowtimeRepository showtimeRepository;
 
     @Autowired
-    private ShowtimeServiceClient showtimeServiceClient;
+    private UserRepository userRepository;
+
+    @Autowired
+    private com.revticket.payment.repository.SeatRepository seatRepository;
+
+    @Autowired
+    private SettingsService settingsService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private com.revticket.payment.repository.ScreenRepository screenRepository;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     public RazorpayOrderResponse createOrder(RazorpayOrderRequest request) throws RazorpayException {
-        logger.info("Creating Razorpay order for amount: {} {}", request.getAmount(), request.getCurrency());
-
         RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
 
         JSONObject orderRequest = new JSONObject();
-        int amountInPaise = (int) (request.getAmount() * 100);
-        orderRequest.put("amount", amountInPaise);
+        orderRequest.put("amount", (int) (request.getAmount() * 100));
         orderRequest.put("currency", request.getCurrency());
-        String receipt = "order_" + System.currentTimeMillis();
-        orderRequest.put("receipt", receipt);
+        orderRequest.put("receipt", "order_" + System.currentTimeMillis());
 
-        logger.debug("Razorpay order request: amount={}, currency={}, receipt={}", amountInPaise, request.getCurrency(),
-                receipt);
         Order order = razorpayClient.orders.create(orderRequest);
-        String orderId = (String) order.get("id");
-        logger.info("Razorpay order created successfully: {}", orderId);
 
         return new RazorpayOrderResponse(
-                orderId,
-                (String) order.get("currency"),
+                order.get("id"),
+                order.get("currency"),
                 order.get("amount"),
                 razorpayKeyId);
     }
 
-    /**
-     * Verify payment and create booking - migrated from monolithic version
-     * Exactly matches monolithic implementation but uses Feign clients for
-     * inter-service calls
-     */
     @Transactional
-    public Map<String, Object> verifyPaymentAndCreateBooking(String userId,
-            RazorpayVerificationRequest request) throws Exception {
-        logger.info("Verifying payment signature for order: {}", request.getRazorpayOrderId());
+    public Booking verifyPaymentAndCreateBooking(String userId, RazorpayVerificationRequest request) throws Exception {
+        // Check if payment already processed
+        var existingPayment = paymentRepository.findByRazorpayOrderId(request.getRazorpayOrderId());
+        if (existingPayment.isPresent() && existingPayment.get().getStatus() == Payment.PaymentStatus.SUCCESS) {
+            return existingPayment.get().getBooking();
+        }
 
-        // Step 1: Verify Razorpay signature
+        // Verify signature
         JSONObject options = new JSONObject();
         options.put("razorpay_order_id", request.getRazorpayOrderId());
         options.put("razorpay_payment_id", request.getRazorpayPaymentId());
         options.put("razorpay_signature", request.getRazorpaySignature());
 
         boolean isValidSignature = Utils.verifyPaymentSignature(options, razorpayKeySecret);
-
         if (!isValidSignature) {
-            logger.error("Invalid payment signature for order: {}", request.getRazorpayOrderId());
             throw new RuntimeException("Invalid payment signature");
         }
-        logger.info("Payment signature verified successfully");
 
-        // Step 2: Get showtime details
-        logger.info("Fetching showtime details for: {}", request.getShowtimeId());
-        Map<String, Object> showtime = showtimeServiceClient.getShowtimeById(request.getShowtimeId());
-        Map<String, Object> movie = (Map<String, Object>) showtime.get("movie");
-        Map<String, Object> theater = (Map<String, Object>) showtime.get("theater");
-        String showtimeDateTime = (String) showtime.get("showDateTime");
-        logger.debug("Showtime details fetched: movie={}, theater={}", movie.get("id"), theater.get("id"));
+        // Get or create user
+        User user = userRepository.findById(userId).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setId(userId);
+            newUser.setEmail(request.getCustomerEmail());
+            newUser.setName(request.getCustomerName());
+            newUser.setPhone(request.getCustomerPhone());
+            newUser.setPassword("");
+            newUser.setRole(User.Role.USER);
+            return userRepository.save(newUser);
+        });
 
-        // Step 3: Create booking via booking service
-        Map<String, Object> bookingRequest = new HashMap<>();
-        bookingRequest.put("userId", userId); // Pass userId in request body instead of header
-        bookingRequest.put("movieId", movie.get("id"));
-        bookingRequest.put("theaterId", theater.get("id"));
-        bookingRequest.put("showtimeId", request.getShowtimeId());
-        bookingRequest.put("seats", request.getSeats());
-        bookingRequest.put("seatLabels", request.getSeatLabels());
-        bookingRequest.put("totalAmount", request.getTotalAmount());
-
-        // Parse showtime string to LocalDateTime
-        LocalDateTime showtimeLocalDateTime = parseShowtimeString(showtimeDateTime);
-        bookingRequest.put("showtime", showtimeLocalDateTime);
-
-        bookingRequest.put("customerName", request.getCustomerName());
-        bookingRequest.put("customerEmail", request.getCustomerEmail());
-        bookingRequest.put("customerPhone", request.getCustomerPhone());
-
-        logger.debug(
-                "Booking request details: userId={}, movieId={}, theaterId={}, showtimeId={}, showtime={}, seats={}",
-                userId, bookingRequest.get("movieId"), bookingRequest.get("theaterId"),
-                request.getShowtimeId(), showtimeLocalDateTime, request.getSeats().size());
-
-        logger.info("Creating booking for user: {} with {} seats", userId,
-                request.getSeats().size());
-
-        String bookingId;
-        String ticketNumber;
-
-        try {
-            Map<String, Object> bookingResponse = bookingServiceClient.createBooking(bookingRequest);
-            bookingId = (String) bookingResponse.get("id");
-            ticketNumber = (String) bookingResponse.get("ticketNumber");
-            logger.info("Booking created successfully: {} with ticket: {}", bookingId, ticketNumber);
-        } catch (Exception e) {
-            logger.error("Error while creating booking with request: {}", bookingRequest, e);
-            throw new RuntimeException("Failed to create booking: " + e.getMessage(), e);
+        Showtime showtime = getShowtimeFromService(request.getShowtimeId());
+        if (showtime == null) {
+            logger.error("Showtime not found: {}", request.getShowtimeId());
+            throw new RuntimeException("Showtime not found: " + request.getShowtimeId());
         }
 
-        // Step 4: Save payment record
+        // Book seats
+        List<com.revticket.payment.entity.Seat> showtimeSeats = seatRepository.findByShowtimeId(request.getShowtimeId());
+        for (String seatId : request.getSeats()) {
+            com.revticket.payment.entity.Seat seat = showtimeSeats.stream()
+                    .filter(s -> seatId.equals(s.getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Seat not found: " + seatId));
+
+            if (seat.getIsBooked()) {
+                throw new RuntimeException("Seat is already booked");
+            }
+
+            seat.setIsBooked(true);
+            seat.setIsHeld(false);
+            seat.setHoldExpiry(null);
+            seat.setSessionId(null);
+            seatRepository.save(seat);
+        }
+
+        showtime.setAvailableSeats(Math.max(0, showtime.getAvailableSeats() - request.getSeats().size()));
+        showtimeRepository.save(showtime);
+
+        // Create booking
+        Booking booking = new Booking();
+        booking.setUser(user);
+        booking.setShowtime(showtime);
+        booking.setSeats(request.getSeats());
+        booking.setSeatLabels(request.getSeatLabels());
+        booking.setTotalAmount(request.getTotalAmount());
+        booking.setCustomerName(request.getCustomerName());
+        booking.setCustomerEmail(request.getCustomerEmail());
+        booking.setCustomerPhone(request.getCustomerPhone());
+        booking.setStatus(Booking.BookingStatus.CONFIRMED);
+        booking.setTicketNumber("TKT-" + System.currentTimeMillis());
+        booking.setPaymentMethod("RAZORPAY");
+        booking.setScreenName(getScreenName(showtime.getScreen()));
+
+        booking = bookingRepository.save(booking);
+
+        // Create payment record
         Payment payment = new Payment();
-        payment.setBookingId(bookingId);
+        payment.setBooking(booking);
         payment.setAmount(request.getTotalAmount());
         payment.setPaymentMethod(Payment.PaymentMethod.UPI);
         payment.setStatus(Payment.PaymentStatus.SUCCESS);
@@ -152,56 +168,81 @@ public class RazorpayService {
         payment.setTransactionId(request.getRazorpayPaymentId());
 
         paymentRepository.save(payment);
-        logger.info("Payment record saved with ID: {}", payment.getId());
 
-        // Step 5: Return result
-        Map<String, Object> result = new HashMap<>();
-        result.put("bookingId", bookingId);
-        result.put("ticketNumber", ticketNumber);
+        // Send email notifications
+        if (settingsService.areEmailNotificationsEnabled()) {
+            try {
+                emailService.sendBookingConfirmation(booking);
+                emailService.sendAdminNewBookingNotification(booking);
+            } catch (Exception e) {
+                System.err.println("Failed to send email notifications: " + e.getMessage());
+            }
+        }
 
-        return result;
+        return booking;
     }
 
     @Transactional
     public void handlePaymentFailure(String userId, RazorpayVerificationRequest request) {
-        logger.info("Handling payment failure for user: {} and order: {}", userId, request.getRazorpayOrderId());
+        User user = userRepository.findById(userId).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setId(userId);
+            newUser.setEmail(request.getCustomerEmail());
+            newUser.setName(request.getCustomerName());
+            newUser.setPhone(request.getCustomerPhone());
+            newUser.setPassword("");
+            newUser.setRole(User.Role.USER);
+            return userRepository.save(newUser);
+        });
 
-        String bookingId = "BKG_FAILED_" + System.currentTimeMillis();
+        Showtime showtime = getShowtimeFromService(request.getShowtimeId());
+        if (showtime == null) return;
+
+        Booking booking = new Booking();
+        booking.setUser(user);
+        booking.setShowtime(showtime);
+        booking.setSeats(request.getSeats());
+        booking.setSeatLabels(request.getSeatLabels());
+        booking.setTotalAmount(request.getTotalAmount());
+        booking.setCustomerName(request.getCustomerName());
+        booking.setCustomerEmail(request.getCustomerEmail());
+        booking.setCustomerPhone(request.getCustomerPhone());
+        booking.setStatus(Booking.BookingStatus.CANCELLED);
+        booking.setPaymentMethod("RAZORPAY");
+
+        booking = bookingRepository.save(booking);
 
         Payment payment = new Payment();
-        payment.setBookingId(bookingId);
+        payment.setBooking(booking);
         payment.setAmount(request.getTotalAmount());
         payment.setPaymentMethod(Payment.PaymentMethod.UPI);
         payment.setStatus(Payment.PaymentStatus.FAILED);
         payment.setRazorpayOrderId(request.getRazorpayOrderId());
 
         paymentRepository.save(payment);
-        logger.info("Payment failure recorded with ID: {}", payment.getId());
     }
 
-    /**
-     * Parse showtime string to LocalDateTime
-     * Handles multiple date format possibilities
-     */
-    private LocalDateTime parseShowtimeString(String showtimeDateTime) {
-        if (showtimeDateTime == null || showtimeDateTime.isEmpty()) {
-            logger.warn("Showtime datetime is null or empty, using current time");
-            return LocalDateTime.now();
-        }
-
+    private Showtime getShowtimeFromService(String showtimeId) {
         try {
-            // Try ISO format first (most common)
-            if (showtimeDateTime.contains("T")) {
-                return LocalDateTime.parse(showtimeDateTime);
-            }
-
-            // Try other common formats
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            return LocalDateTime.parse(showtimeDateTime, formatter);
+            logger.info("Fetching showtime from showtime-service: {}", showtimeId);
+            Showtime showtime = restTemplate.getForObject(
+                "http://showtime-service/api/showtimes/" + showtimeId,
+                Showtime.class
+            );
+            logger.info("Successfully fetched showtime: {}", showtimeId);
+            return showtime;
         } catch (Exception e) {
-            logger.error("Failed to parse showtime: {}, using current time. Error: {}", showtimeDateTime,
-                    e.getMessage());
-            return LocalDateTime.now();
+            logger.warn("Failed to fetch showtime from service: {}, falling back to local DB", e.getMessage());
+            return showtimeRepository.findById(showtimeId).orElse(null);
         }
+    }
+
+    private String getScreenName(String screenId) {
+        if (screenId == null || screenId.isEmpty()) {
+            return "Screen";
+        }
+        return screenRepository.findById(screenId)
+                .map(screen -> screen.getName())
+                .orElse("Screen");
     }
 }

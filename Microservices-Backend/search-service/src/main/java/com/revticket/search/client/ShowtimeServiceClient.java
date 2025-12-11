@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "showtime-service")
+@FeignClient(name = "showtime-service", configuration = com.revticket.search.config.FeignConfig.class)
 public interface ShowtimeServiceClient {
-    
+
     @GetMapping("/api/showtimes/search")
     List<ShowtimeSearchDTO> searchShowtimes(@RequestParam String query);
 }

@@ -48,12 +48,17 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                     userId = claims.getSubject();
                 }
                 
-                ServerHttpRequest modifiedRequest = request.mutate()
+                ServerHttpRequest.Builder requestBuilder = request.mutate()
                         .header("X-User-Id", userId)
-                        .header("X-User-Role", claims.get("role", String.class))
-                        .header("Authorization", authHeader)
-                        .build();
+                        .header("Authorization", authHeader);
+                
+                // Extract role from JWT
+                String role = claims.get("role", String.class);
+                if (role != null && !role.isEmpty()) {
+                    requestBuilder.header("X-User-Role", role);
+                }
 
+                ServerHttpRequest modifiedRequest = requestBuilder.build();
                 return chain.filter(exchange.mutate().request(modifiedRequest).build());
             } catch (Exception e) {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
